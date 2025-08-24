@@ -1,75 +1,111 @@
 import streamlit as st
+import numpy as np
 from PIL import Image
+import tensorflow as tf
 
-# Page configuration
-st.set_page_config(page_title="Pawdentify - Dog Breed Prediction", page_icon="🐶", layout="wide")
+# -------------------------------
+# Load your trained model
+# -------------------------------
+@st.cache_resource
+def load_model():
+    model = tf.keras.models.load_model("dog_breed.keras")
+    return model
 
-# Title with custom styling
+model = load_model()
+
+# -------------------------------
+# Define class names
+# -------------------------------
+CLASS_NAMES = ['scottish_deerhound','maltese_dog','afghan_hound','entlebucher','bernese_mountain_dog']
+
+# -------------------------------
+# Page Config
+# -------------------------------
+st.set_page_config(
+    page_title="🐶 Dog Breed Prediction",
+    page_icon="🐾",
+    layout="wide"
+)
+
+# -------------------------------
+# Custom Styling
+# -------------------------------
 st.markdown(
     """
-    <div style="text-align:center; padding:20px;">
-        <h1 style="color:#4CAF50; font-size:50px;">🐾 Pawdentify 🐾</h1>
-        <h3 style="color:#555;">Dog Breed Prediction Made Easy</h3>
-    </div>
+    <style>
+    .stApp {
+        background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        font-family: 'Segoe UI', sans-serif;
+    }
+    h1 {
+        color: #2e2e2e;
+        text-align: center;
+        font-size: 3em !important;
+    }
+    .result-card {
+        background: white;
+        padding: 20px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0px 4px 25px rgba(0,0,0,0.15);
+        margin-top: 20px;
+    }
+    .confidence-label {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    </style>
     """,
     unsafe_allow_html=True
 )
 
-# Sidebar
-st.sidebar.title("Navigation")
-st.sidebar.markdown("📌 Use the options below to explore Pawdentify:")
+# -------------------------------
+# Title
+# -------------------------------
+st.markdown("<h1>🐾 Dog Breed Prediction App 🐾</h1>", unsafe_allow_html=True)
+st.write("<p style='text-align:center;'>Upload a picture of a dog, and let AI guess its breed 🐕✨</p>", unsafe_allow_html=True)
 
-menu = st.sidebar.radio("Go to", ["Home", "Upload & Predict", "About"])
+# -------------------------------
+# Upload Image
+# -------------------------------
+uploaded_file = st.file_uploader("📸 Upload a dog image...", type=["jpg", "jpeg", "png"])
 
-if menu == "Home":
+if uploaded_file is not None:
+    # Display image
+    image = Image.open(uploaded_file)
+    col1, col2, col3 = st.columns([3,3,3])  # middle column is bigger
+    with col2:
+        st.image(image, caption="📷 Uploaded Image", width=300)
+
+
+
+    # Preprocess image
+    img = image.resize((224, 224))
+    img_array = np.array(img) / 255.0
+    img_array = np.expand_dims(img_array, axis=0)
+
+    # Prediction
+    predictions = model.predict(img_array)
+    predicted_class = CLASS_NAMES[np.argmax(predictions)]
+    confidence = np.max(predictions) * 100
+
+    # Show results (simple + clean)
     st.markdown(
-        """
-        <div style="text-align:center; padding:20px;">
-            <h2>Welcome to Pawdentify 🐶</h2>
-            <p style="font-size:18px; color:#333;">
-                Upload your dog’s photo and let our AI model predict its breed instantly!
-            </p>
+        f"""
+        <div class="result-card">
+            <p style="font-size:22px;">🐶 Predicted Breed: <b>{predicted_class}</b></p>
+            <div class="confidence-label">Confidence: {confidence:.2f}%</div>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    cols = st.columns(3)
-    with cols[0]:
-        st.image("https://placedog.net/400/300?id=15", caption="Golden Retriever", use_container_width=True)
-    with cols[1]:
-        st.image("https://placedog.net/400/300?id=25", caption="Pug", use_container_width=True)
-    with cols[2]:
-        st.image("https://placedog.net/400/300?id=35", caption="Beagle", use_container_width=True)
+    # Confidence bar
+    st.progress(int(confidence))
 
-elif menu == "Upload & Predict":
-    st.markdown("### 📤 Upload an Image")
-    uploaded_file = st.file_uploader("Choose a dog image...", type=["jpg", "jpeg", "png"])
 
-    if uploaded_file is not None:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_container_width=True)
 
-        st.markdown("### 🔍 Prediction Result")
-        # Dummy prediction for demo (replace with your model prediction)
-        st.success("Predicted Breed: **Golden Retriever** 🐕")
 
-        st.progress(85)  # confidence bar
 
-elif menu == "About":
-    st.markdown(
-        """
-        ## 📖 About Pawdentify
-        Pawdentify is a deep learning project built with **TensorFlow/Keras** and deployed using **Streamlit**.
-        
-        **Model Details:**
-        - Framework: TensorFlow/Keras  
-        - Architecture: Custom CNN (Conv2D, MaxPooling, Dropout, Dense layers)  
-        - Optimizer: Adam  
-        - Loss Function: Categorical Crossentropy  
-        - Early Stopping & Model Checkpoint applied during training  
-
-        🚀 Developed with ❤️ for dog lovers!
-        """
-    )
 
